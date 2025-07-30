@@ -7,10 +7,11 @@ import numpy as np
 import spacy
 import psycopg2
 
+# Выгрузка и обработка основной информации по вакансиям
 def init_hh_main_data():
 
     info_vac_v1 = pd.DataFrame()
-    # Выгрузка основной информации по вакансиям
+
     for i in range(0, 1):
         params = {
             'text': '!(аналитик данных OR data analyst OR бизнес-аналитик OR BI-аналитик or data engineer)',
@@ -117,7 +118,7 @@ def init_hh_main_data():
 
     return info_vac_v1
 
-
+# Выгрузка по каждой вакансии
 def load_info_vac(info_vac_v1):
     description_info = []
     for id in info_vac_v1['id']:
@@ -148,6 +149,7 @@ def load_info_vac(info_vac_v1):
 
     return description_info
 
+# Из текста вакансий выносим инфу по скилам
 def extract_skills(desc):
     skills_keywords = [
         # Языки программирования
@@ -197,6 +199,7 @@ def extract_skills(desc):
 
 nlp = spacy.load("ru_core_news_sm")
 
+# Проверяем на возможную стажировку
 def check_intern_nlp(desc):
     doc = nlp(desc.lower())
 
@@ -222,7 +225,6 @@ def main():
 
     hh_vac_data_merge.rename(columns={'description_y': 'description',
                                    'key_skills_under_desc_y': 'key_skills_under_desc'}, inplace=True)
-    # info_vac_merge.to_csv('info_vac.csv')
 
     hh_vac_data_merge.columns = map(lambda x: x.replace('.', '_'), hh_vac_data_merge.columns.to_list())
 
