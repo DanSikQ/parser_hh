@@ -191,7 +191,21 @@ def load_vacancy_data(vacancy_df):
         print("Типы данных в строке:", {k: type(v) for k, v in vacancy_df.iloc[0].items()})
         raise
 
+def unload_from_db():
+    postgres_hook = PostgresHook(postgres_conn_id=POSTGRES_CONN_ID)
+    with postgres_hook.get_conn() as conn:
+        vacancy_info = pd.read_sql_query('''SELECT vacancy.*, emp.name_employer, emp.accredited_it_employer, emp.trusted  FROM vacancy
+                 LEFT JOIN employers emp on vacancy.id_employer = emp.id_employer
+                 WHERE published_at BETWEEN NOW() - INTERVAL '7 days' and NOW()''', conn)
 
+        vacancy_info.drop(columns=['schedule_work_by_days'], inplace=True)
+        vacancy_info.to_csv('/opt/airflow/data/vacancy_info.csv', index=False)
+
+        skills_info = pd.read_sql_query('''SELECT skills.* FROM skills
+                    LEFT JOIN vacancy on skills.id = vacancy.id
+                    WHERE published_at BETWEEN NOW() - INTERVAL '7 days' and NOW()''', conn)
+        skills_info = skills_info[skills_info['skills_in_desc'].notna()]
+        skills_info.to_csv('/opt/airflow/data/skills_info.csv', index=False)
 
 with DAG(
     'create_simple_table',
@@ -199,16 +213,18 @@ with DAG(
     'owner': 'airflow',
     'start_date': pendulum.datetime(2015, 12, 1, tz="UTC"),
 },
-    schedule = '5 14 * * *',
+    schedule = '5 10 * * *',
     catchup=False,
     tags=['hh_load'],
+    max_active_runs=1,
 ) as dag:
 
+    # a.  Загрузка основных данных о вакансиях
     get_hh_main_data_task = PythonOperator(task_id='get_hh_main_data',
                                            python_callable = auto_parser.init_hh_main_data,
                                            )
 
-    # b.  Загрузка данных о вакансиях
+    # b.  Загрузка текста вакансий
     load_hh_vac_data_task = PythonOperator(
         task_id='load_hh_vac_data',
         python_callable = auto_parser.load_info_vac,
@@ -242,7 +258,7 @@ with DAG(
         op_kwargs={'hh_vac_data_merge': create_hh_vac_data_merge_task.output},
     )
 # ------------------------------------------------------------
-
+    # Загрузка данных в базу данных
     create_vacancy_table_task = PythonOperator(
         task_id='create_vacancy_table',
         python_callable=create_vacancy_table,
@@ -257,7 +273,6 @@ with DAG(
         task_id='create_skills_table',
         python_callable=create_skills_table,
     )
-
 
 
     load_vacancy_data_task = PythonOperator(
@@ -278,5 +293,10 @@ with DAG(
         op_kwargs={'vacancy_skills_df': create_vacancy_skills_task.output},
     )
 
+    unload_for_bi = PythonOperator(
+        task_id='unload_for_bi',
+        python_callable = unload_from_db
+    )
+
     get_hh_main_data_task >> load_hh_vac_data_task >> create_hh_vac_data_merge_task >> create_vacancy_skills_task >> create_employer_task >> create_vacancy_task
-    create_employers_table_task >> create_vacancy_table_task  >> create_skills_table_task >> load_employers_data_task >> load_vacancy_data_task >>  load_skills_data_task
+    create_employers_table_task >> create_vacancy_table_task  >> create_skills_table_task >> load_employers_data_task >> load_vacancy_data_task >>  load_skills_data_task >> unload_for_bi

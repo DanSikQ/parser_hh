@@ -11,7 +11,7 @@ def init_hh_main_data():
 
     info_vac_v1 = pd.DataFrame()
 
-    for i in range(0, 10):
+    for i in range(0, 19):
         params = {
             'text': '!(аналитик данных OR data analyst OR бизнес-аналитик OR BI-аналитик or data engineer)',
             # Текст фильтра
@@ -183,7 +183,7 @@ def extract_skills(desc):
         # Дополнительные технологии
         'Docker', 'Kubernetes', 'Linux', 'Bash', 'Pandas', 'NumPy', 'SciPy',
         'Scikit-learn', 'TensorFlow', 'PyTorch', 'Keras', 'XGBoost', 'CatBoost',
-        'LightGBM', 'OpenCV', 'NLTK', 'spaCy', 'Hugging Face', 'REST', 'API', 'request', 'WebSocket',
+        'LightGBM', 'OpenCV', 'NLTK', 'spaCy', 'Hugging Face', 'REST API', 'request', 'WebSocket',
 
         # Математика
         'Математика', 'Статистика', 'Математический анализ', 'Линейная алгебра',

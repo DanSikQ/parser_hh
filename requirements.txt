@@ -1,0 +1,5 @@
+spacy
+psycopg2-binary
+pandas
+
+
