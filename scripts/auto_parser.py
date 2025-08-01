@@ -5,20 +5,19 @@ import time
 import re
 import numpy as np
 import spacy
-import psycopg2
 
 # Выгрузка и обработка основной информации по вакансиям
 def init_hh_main_data():
 
     info_vac_v1 = pd.DataFrame()
 
-    for i in range(0, 1):
+    for i in range(0, 10):
         params = {
             'text': '!(аналитик данных OR data analyst OR бизнес-аналитик OR BI-аналитик or data engineer)',
             # Текст фильтра
             'area': 1,  # Поиск ощуществляется по вакансиям города Москва
             'page': i,  # Индекс страницы поиска на HH
-            'per_page': 10  # Кол-во вакансий на 1 странице
+            'per_page': 100  # Кол-во вакансий на 1 странице
         }
 
         req = requests.get('https://api.hh.ru/vacancies', params)  # Посылаем запрос к API
@@ -200,7 +199,7 @@ def extract_skills(desc):
 nlp = spacy.load("ru_core_news_sm")
 
 # Проверяем на возможную стажировку
-def check_intern_nlp(desc):
+def check_intern_nlp(desc, nlp_func):
     doc = nlp(desc.lower())
 
     internship_lemmas = {
@@ -214,40 +213,42 @@ def check_intern_nlp(desc):
 
     return False
 
-
-def main():
-    hh_main_data = init_hh_main_data()
-    hh_vac_data = load_info_vac(hh_main_data)
+def create_hh_vac_data_merge(hh_main_data, hh_vac_data):
 
     df_hh_vac_data = pd.DataFrame(hh_vac_data)
     hh_vac_data_merge = hh_main_data.merge(df_hh_vac_data, left_on='id', right_on='vacancy_id', how='left').drop(
         columns=['vacancy_id'])
 
     hh_vac_data_merge.rename(columns={'description_y': 'description',
-                                   'key_skills_under_desc_y': 'key_skills_under_desc'}, inplace=True)
+                                      'key_skills_under_desc_y': 'key_skills_under_desc'}, inplace=True)
 
     hh_vac_data_merge.columns = map(lambda x: x.replace('.', '_'), hh_vac_data_merge.columns.to_list())
 
     hh_vac_data_merge['skills_in_desc'] = hh_vac_data_merge['description'].apply(extract_skills)
     hh_vac_data_merge = hh_vac_data_merge[hh_vac_data_merge['id'].notna()]
 
-    hh_vac_data_merge['is_intern'] = hh_vac_data_merge['name'].apply(check_intern_nlp)
+    hh_vac_data_merge['is_intern'] = hh_vac_data_merge['name'].apply(lambda x: check_intern_nlp(x, nlp))
     hh_vac_data_merge = hh_vac_data_merge[hh_vac_data_merge['id_employer'].notna()]
 
     hh_vac_data_merge['published_at'] = pd.to_datetime(hh_vac_data_merge['published_at'], utc=True)
     hh_vac_data_merge.rename(columns={'from': 'from_salary',
-                                   'to': 'to_salary'}, inplace=True)
+                                      'to': 'to_salary'}, inplace=True)
+    hh_vac_data_merge[['id', 'id_employer']] = hh_vac_data_merge[['id', 'id_employer']].astype(int)
 
-    skills_desc = hh_vac_data_merge['skills_in_desc'].explode('skills_in_desc')
-    skills_counts = skills_desc.value_counts()
-    vacancy_skills = hh_vac_data_merge[['id', 'skills_in_desc']].explode('skills_in_desc')
+    return hh_vac_data_merge
+
+def load_skills(hh_vac_data_merge):
+
+    return hh_vac_data_merge[['id', 'skills_in_desc']].explode('skills_in_desc')
+
+def load_employers(hh_vac_data_merge):
 
     employer = hh_vac_data_merge[['id_employer', 'name_employer', 'accredited_it_employer', 'trusted']].drop_duplicates(
         subset=['id_employer'], keep='first')
     employer = employer[employer['id_employer'].notna()]
+    return employer
 
+def load_vacancy(hh_vac_data_merge):
     hh_vac_data_merge.drop(columns=['name_employer', 'accredited_it_employer', 'trusted'], inplace=True)
-    print(hh_vac_data_merge)
+    return hh_vac_data_merge
 
-if __name__ == "__main__":
-    main()
