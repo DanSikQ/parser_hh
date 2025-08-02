@@ -1,6 +1,7 @@
 from airflow.operators.python import PythonOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow import DAG
+from psycopg2.extras import execute_batch
 import datetime
 import pendulum
 import sys
@@ -162,7 +163,6 @@ def load_vacancy_data(vacancy_df):
                 columns = ', '.join(vacancy_df.columns)
                 placeholders = ', '.join(['%s'] * len(vacancy_df.columns))
 
-                # Явное преобразование типов
                 data_to_insert = []
                 for _, row in vacancy_df.iterrows():
                     row_data = []
@@ -177,8 +177,7 @@ def load_vacancy_data(vacancy_df):
                             row_data.append(value)
                     data_to_insert.append(tuple(row_data))
 
-                # Используем execute_batch для эффективности
-                from psycopg2.extras import execute_batch
+
                 execute_batch(
                     cursor,
                     f"INSERT INTO vacancy ({columns}) VALUES ({placeholders}) ON CONFLICT (id) DO NOTHING",

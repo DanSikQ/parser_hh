@@ -11,17 +11,17 @@ def init_hh_main_data():
 
     info_vac_v1 = pd.DataFrame()
 
-    for i in range(0, 19):
+    for i in range(0, 2):
         params = {
             'text': '!(аналитик данных OR data analyst OR бизнес-аналитик OR BI-аналитик or data engineer)',
             # Текст фильтра
             'area': 1,  # Поиск ощуществляется по вакансиям города Москва
             'page': i,  # Индекс страницы поиска на HH
-            'per_page': 100  # Кол-во вакансий на 1 странице
+            'per_page': 10  # Кол-во вакансий на 1 странице
         }
 
         req = requests.get('https://api.hh.ru/vacancies', params)  # Посылаем запрос к API
-        data = req.content.decode()  # Декодируем его ответ, чтобы Кириллица отображалась корректно
+        data = req.content.decode()
         time.sleep(0.5)
         req.close()
         json_data = json.loads(data)
