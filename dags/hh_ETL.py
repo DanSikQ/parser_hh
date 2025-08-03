@@ -257,7 +257,8 @@ with DAG(
         op_kwargs={'hh_vac_data_merge': create_hh_vac_data_merge_task.output},
     )
 # ------------------------------------------------------------
-    # Загрузка данных в базу данных
+
+# Загрузка данных в базу данных
     create_vacancy_table_task = PythonOperator(
         task_id='create_vacancy_table',
         python_callable=create_vacancy_table,
